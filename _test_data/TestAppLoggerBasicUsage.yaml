@@ -1,0 +1,14 @@
+log_level: "trace"
+time_format: "UnixMs"
+
+log_files:
+  - path: "logs/test.log"
+    file_permissions: 0660
+    dir_permissions: 0775
+
+console:
+  - prettify: true
+
+telegram:
+  - bot_token: "12345678"
+    chat_id: "12345678"

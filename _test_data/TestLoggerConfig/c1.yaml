@@ -1,0 +1,6 @@
+log_files:
+  - path: "logs/test.log"
+    file_permissions: 0660
+    dir_permissions: 0775
+console:
+  - prettify: true
