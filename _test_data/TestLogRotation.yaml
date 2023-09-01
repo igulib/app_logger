@@ -1,0 +1,11 @@
+time_format: "disabled"
+
+log_files:
+  - path: "logs/rotated.log"
+    file_permissions: 0660
+    dir_permissions: 0775
+    rotate: true
+    maxsize: 1
+    maxage: 1
+    maxbackups: 2
+    compress: true

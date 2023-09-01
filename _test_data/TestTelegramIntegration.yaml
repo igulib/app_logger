@@ -1,0 +1,7 @@
+time_format: "disabled"
+
+
+telegram:
+  bot_token: ""
+  chat_ids: []
+  log_levels: ["debug", "error", "fatal", "panic"]

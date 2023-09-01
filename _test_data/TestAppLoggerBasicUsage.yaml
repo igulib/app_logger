@@ -1,10 +1,20 @@
-log_level: "trace"
+# log_level: "disabled"
 time_format: "UnixMs"
+use_utc: true
 
 log_files:
-  - path: "logs/test.log"
+  - path: "logs/simple.log"
     file_permissions: 0660
     dir_permissions: 0775
+
+  - path: "logs/rotated.log"
+    file_permissions: 0660
+    dir_permissions: 0775
+    rotate: true
+    maxsize: 1
+    maxage: 1
+    maxbackups: 2
+    compress: true
 
 console:
   - prettify: true

@@ -4,10 +4,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+// testId is used to create a new app_logger unit name for each test.
+var testId = 1
 
 // TEST SETUP BEGIN
 
@@ -80,7 +84,7 @@ func teardown(m *testing.M) {
 		}
 		fmt.Println("--- app_logger test directory successfully removed ---")
 	} else {
-		fmt.Printf("--- app_logger tests complete. Remove test directory manually if required: '%s'\n ---", testRootDir)
+		fmt.Printf("--- app_logger tests complete. You can remove the test directory manually if required: '%s'\n ---", testRootDir)
 	}
 }
 
@@ -126,16 +130,21 @@ func TestLoggerConfigParsed(t *testing.T) {
 
 func TestAppLoggerBasicUsage(t *testing.T) {
 
+	DefaultAppLoggerUnitName = fmt.Sprintf("logger_unit_%d", testId)
+	testId++
+
 	testDir := createSubDir("TestAppLoggerBasicUsage")
 	configBytes, err := os.ReadFile("./_test_data/TestAppLoggerBasicUsage.yaml")
 	require.Equal(t, nil, err)
 
 	config, err := ParseYamlConfig([]byte(configBytes))
+	require.Equal(t, nil, err)
+
 	for _, file := range config.LogFiles {
 		// Prepend testDir path to the paths specified in the config
 		file.Path = join(testDir, file.Path)
 	}
-	require.Equal(t, nil, err)
+
 	err = Create(config)
 	require.Equal(t, nil, err, "app_logger must be created successfully")
 	err = Start()
@@ -150,11 +159,113 @@ func TestAppLoggerBasicUsage(t *testing.T) {
 		require.FileExists(t, file.Path)
 	}
 
-	// require.True(t, false)
 	l := Get()
 
 	// Write some log records
 	l.Debug().Msg("dummy debug message")
+
+	err = Pause()
+	require.Equal(t, nil, err, "app_logger must pause successfully")
+
+	err = Quit()
+	require.Equal(t, nil, err, "app_logger must quit successfully")
+
+}
+
+func TestLogRotation(t *testing.T) {
+
+	DefaultAppLoggerUnitName = fmt.Sprintf("logger_unit_%d", testId)
+	testId++
+
+	testDir := createSubDir("TestLogRotation")
+	configBytes, err := os.ReadFile("./_test_data/TestLogRotation.yaml")
+	require.Equal(t, nil, err)
+
+	config, err := ParseYamlConfig([]byte(configBytes))
+	require.Equal(t, nil, err)
+
+	for _, file := range config.LogFiles {
+		// Prepend testDir path to the paths specified in the config
+		file.Path = join(testDir, file.Path)
+	}
+
+	err = Create(config)
+	require.Equal(t, nil, err, "app_logger must be created successfully")
+	err = Start()
+	require.Equal(t, nil, err, "app_logger must start successfully")
+
+	l := Get()
+
+	// Write about 3.5MB of logs
+	for x := 1; x <= 40000; x++ {
+		l.Debug().Msgf("this is a dummy debug message to check log rotation #%d", x)
+	}
+
+	err = Pause()
+	require.Equal(t, nil, err, "app_logger must pause successfully")
+
+	err = Quit()
+	require.Equal(t, nil, err, "app_logger must quit successfully")
+
+	// Log dirs and files must exist
+	for _, file := range config.LogFiles {
+
+		d := filepath.Dir(file.Path)
+		require.DirExists(t, d)
+		require.FileExists(t, file.Path)
+
+		f, err := os.Open(d)
+		require.Equal(t, nil, err, "rotated log directory must be open successfully")
+
+		names, err := f.Readdirnames(-1)
+		f.Close()
+		require.Equal(t, nil, err)
+
+		// Check that there are 3 files in the log dir:
+		// rotated.log and two .log.gz files
+		require.Equal(t, 3, len(names), "there must be 3 files in the rotated log directory")
+		namesMatch := true
+		for _, name := range names {
+			if !(name == "rotated.log" || strings.HasSuffix(name, ".log.gz")) {
+				namesMatch = false
+			}
+		}
+		require.Equal(t, true, namesMatch, "name of each file must be either 'rotated.log' or end with .log.gz")
+	}
+
+}
+
+func TestTelegramIntegration(t *testing.T) {
+
+	DefaultAppLoggerUnitName = fmt.Sprintf("logger_unit_%d", testId)
+	testId++
+
+	// testDir := createSubDir("TestTelegramIntegration")
+
+	configBytes, err := os.ReadFile("./_test_data/TestTelegramIntegration.yaml")
+	require.Equal(t, nil, err)
+
+	config, err := ParseYamlConfig([]byte(configBytes))
+	require.Equal(t, nil, err)
+
+	// for _, file := range config.LogFiles {
+	// 	// Prepend testDir path to the paths specified in the config
+	// 	file.Path = join(testDir, file.Path)
+	// }
+
+	err = Create(config)
+	require.Equal(t, nil, err, "app_logger must be created successfully")
+	err = Start()
+	require.Equal(t, nil, err, "app_logger must start successfully")
+
+	l := Get()
+
+	// // Write about 3.5MB of logs
+	// for x := 1; x <= 40000; x++ {
+	// 	l.Debug().Msgf("this is a dummy debug message to check log rotation #%d", x)
+	// }
+
+	l.Debug().Msgf("this is a telegram log message test #%d", 1)
 
 	err = Pause()
 	require.Equal(t, nil, err, "app_logger must pause successfully")
