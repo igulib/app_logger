@@ -275,7 +275,7 @@ func TestTelegramNotifier(t *testing.T) {
 	l := Get()
 	l.Trace().Msg("Test message 0.")
 	l.Debug().Msg("Test message 1.")
-	l.Info().Msg("Test message 2.")
+	l.Info().Msgf("Automatic: looks like `igulib/app_logger` package test was successful, OS: %q.", runtime.GOOS)
 	l.Warn().Msgf("Important: this is `igulib/app_logger` package test message, OS: %q.", runtime.GOOS)
 	l.Error().Msg("Test message 4.")
 	l.WithLevel(zerolog.FatalLevel).Msg("! Test message 5.")
