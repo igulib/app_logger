@@ -18,7 +18,3 @@ log_files:
 
 console:
   - prettify: true
-
-telegram:
-  - bot_token: "12345678"
-    chat_id: "12345678"
