@@ -1,0 +1,7 @@
+bot_token_env_var: "BOT_TOKEN"
+chat_ids_env_var: "CHAT_IDS"
+
+# Settings starting with `log_` only have effect when integrated with igulib/app_logger.
+log_levels: ["debug", "warning", "error", "fatal", "panic"]
+log_must_have_prefixes: ["IMPORTANT", "Important"]
+log_date_time: true

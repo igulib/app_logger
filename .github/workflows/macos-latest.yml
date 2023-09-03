@@ -24,3 +24,6 @@ jobs:
 
     - name: Test
       run: go test -v -race ./...
+      env:
+        BOT_TOKEN: ${{ secrets.TEST_TELEGRAM_BOT_TOKEN }}
+        CHAT_IDS: ${{ secrets.TEST_TELEGRAM_CHAT_IDS }}

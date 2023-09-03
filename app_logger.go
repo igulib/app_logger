@@ -339,11 +339,11 @@ func ensureFileExists(path string, filePerm, dirPerm uint32) error {
 // Create creates the app_logger and
 // adds it into the default app unit manager (app.M).
 // The unit's name is 'app_logger'.
-func Create(config *Config) error {
+func Create(config *Config, hooks ...zerolog.Hook) error {
 
 	u := &appLogger{}
 
-	err := u.init(config)
+	err := u.init(config, hooks...)
 	if err != nil {
 		return err
 	}
@@ -410,7 +410,7 @@ func createPrettifiedConsoleFormatter(vc *validatedConfig) func(i interface{}) s
 
 }
 
-func (u *appLogger) init(c *Config) error {
+func (u *appLogger) init(c *Config, hooks ...zerolog.Hook) error {
 
 	// Validate configuration
 	vc, err := validateConfig(c)
@@ -504,11 +504,10 @@ func (u *appLogger) init(c *Config) error {
 		log.Logger = zerolog.New(mw).With().Timestamp().Logger()
 	}
 
-	// // Add telegram hook if telegram output defined
-	// if vc.Telegram != nil {
-	// 	log.Logger = log.Logger.Hook(u)
-	// 	u.tgMsgChan = make(chan string, 50) // TODO: replace magic number
-	// }
+	// Set up external hooks if provided
+	for _, hook := range hooks {
+		log.Logger = log.Logger.Hook(hook)
+	}
 
 	return nil
 }

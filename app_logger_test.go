@@ -4,8 +4,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/igulib/app"
+	"github.com/igulib/telegram_notifier"
+	"github.com/rs/zerolog"
 
 	"github.com/stretchr/testify/require"
 )
@@ -211,12 +216,13 @@ func TestLogRotation(t *testing.T) {
 		f.Close()
 		require.Equal(t, nil, err)
 
-		// Check that there are 3 files in the log dir:
-		// rotated.log and two .log.gz files
-		require.Equal(t, 3, len(names), "there must be 3 files in the rotated log directory")
+		// Check files in the log dir:
+		require.GreaterOrEqual(t, len(names), 3, "there must be at least 3 files in the rotated log directory")
+		require.LessOrEqual(t, len(names), 5, "there must be at most 5 files in the rotated log directory (two .log files may be still converting into .log.gz)")
+
 		namesMatch := true
 		for _, name := range names {
-			if !(name == "rotated.log" || strings.HasSuffix(name, ".log.gz")) {
+			if !(strings.HasSuffix(name, ".log") || strings.HasSuffix(name, ".log.gz")) {
 				namesMatch = false
 			}
 		}
@@ -225,10 +231,67 @@ func TestLogRotation(t *testing.T) {
 
 }
 
-func TestTelegramIntegration(t *testing.T) {
+func TestTelegramNotifier(t *testing.T) {
 
 	DefaultAppLoggerUnitName = fmt.Sprintf("logger_unit_%d", testId)
 	testId++
 
+	testDir := createSubDir("TestTelegramNotifier")
+	configBytes, err := os.ReadFile("./_test_data/TestTelegramNotifier.yaml")
+	require.Equal(t, nil, err)
+
+	config, err := ParseYamlConfig([]byte(configBytes))
+	require.Equal(t, nil, err)
+
+	for _, file := range config.LogFiles {
+		// Prepend testDir path to the paths specified in the config
+		file.Path = join(testDir, file.Path)
+	}
+
+	// Create and start telegram_notifier unit
+	tgConfigBytes, err := os.ReadFile("./_test_data/TelegramNotifierConfig.yaml")
+	require.Equal(t, nil, err)
+	tgNotifierConfig, err := telegram_notifier.ParseYamlConfig([]byte(tgConfigBytes))
+	require.Equal(t, nil, err, "telegram_notifier configuration must be parsed without errors")
+
+	tgNotifierUnitName := fmt.Sprintf("telegram_notifier_%d", testId)
+	tgNotifier, err := telegram_notifier.NewTelegramNotifier(tgNotifierUnitName, tgNotifierConfig)
+	require.Equal(t, nil, err, "new telegram_notifier instance must be created without errors")
+
+	tgNotifier.SetLogMessageTitleSuffix("app_logger_test")
+
+	err = app.M.AddUnit(tgNotifier)
+	require.Equal(t, nil, err, "telegram_notifier unit must be added successfully")
+	_, err = app.M.Start(tgNotifierUnitName)
+	require.Equal(t, nil, err, "telegram_notifier unit must start successfully")
+	r := app.M.WaitForCompletion()
+	require.Equal(t, true, r.OK, "telegram_notifier unit must start successfully")
+
+	// Create app_logger with telegram_notifier hook
+	err = Create(config, tgNotifier)
+
+	require.Equal(t, nil, err, "app_logger must be created successfully")
+
+	l := Get()
+	l.Trace().Msg("Test message 0.")
+	l.Debug().Msg("Test message 1.")
+	l.Info().Msg("Test message 2.")
+	l.Warn().Msgf("Important: this is `igulib/app_logger` package test message, OS: %q.", runtime.GOOS)
+	l.Error().Msg("Test message 4.")
+	l.WithLevel(zerolog.FatalLevel).Msg("! Test message 5.")
+	l.WithLevel(zerolog.PanicLevel).Msg("! Test message 6.")
+
 	require.Equal(t, true, true)
+
+	_, err = app.M.Pause(tgNotifierUnitName)
+	require.Equal(t, nil, err, "telegram_notifier unit must pause successfully")
+	r = app.M.WaitForCompletion()
+	require.Equal(t, true, r.OK, "telegram_notifier unit must pause successfully")
+
+	_, err = app.M.Quit(tgNotifierUnitName)
+	require.Equal(t, nil, err, "telegram_notifier unit must quit successfully")
+	r = app.M.WaitForCompletion()
+	require.Equal(t, true, r.OK, "telegram_notifier unit must quit successfully")
+	err = Close()
+	require.Equal(t, nil, err, "logger_unit must close without errors")
 }
