@@ -328,6 +328,9 @@ func ensureFileExists(path string, filePerm, dirPerm uint32) error {
 	//
 	if file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL,
 		fs.FileMode(filePerm)); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return nil
+		}
 		return err
 	} else {
 		file.Close()
